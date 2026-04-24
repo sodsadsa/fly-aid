@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fly Aid | NextGen Global Delivery</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #4deeea; /* Neon Teal */
+            --accent: #74ebd5;
+            --cool-blue: #0d47a1; /* Dunkleres Blau für das Logo */
+            --bg-dark: #0a1118;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-light: #e0e0e0; /* Helles Grau für den Logo-Text */
+            --glow: 0 0 20px rgba(77, 238, 234, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 50% -20%, #1e3a44 0%, #0a1118 100%);
+        }
+
+        /* --- LOGO STYLING --- */
+        .fly-aid-logo-svg {
+            width: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Farbanpassung der Logo-Elemente */
+        .fly-aid-logo-svg .cls-cool-blue { fill: var(--cool-blue); } /* Dunkelblau behalten */
+        .fly-aid-logo-svg .cls-neon-teal { fill: var(--primary); }  /* Türkis in Neon-Teal ändern */
+        .fly-aid-logo-svg .cls-text-light { fill: var(--text-light); } /* Text in helles Grau ändern */
+
+        /* Größenanpassungen */
+        .logo-login { height: 180px; margin-bottom: 20px; }
+        .logo-sidebar { height: 70px; margin-bottom: 15px; }
+
+        /* --- LOGIN SCREEN --- */
+        #login-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: var(--bg-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .login-card {
+            width: 90%;
+            max-width: 450px;
+            padding: 40px 30px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(30px);
+            border-radius: 40px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+
+        .login-card p.ios26-secure {
+            opacity: 0.5;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 30px;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            background: rgba(0,0,0,0.2);
+            color: white;
+            font-size: 18px;
+            outline: none;
+            text-align: center;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 20px;
+            background: var(--primary);
+            color: #0a1118;
+            border: none;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+            box-shadow: var(--glow);
+            transition: transform 0.2s;
+        }
+
+        .btn-login:active { transform: scale(0.95); }
+
+        /* --- MAIN APP LAYOUT --- */
+        #app-container {
+            display: none;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 120px 1fr; /* Etwas breitere Sidebar */
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 0;
+            gap: 15px;
+        }
+
+        .nav-icon {
+            width: 80px;
+            height: 70px;
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: rgba(255,255,255,0.4);
+            transition: all 0.3s;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .nav-icon b { font-size: 26px; margin-bottom: 4px; font-style: normal;}
+        .nav-icon.active {
+            background: rgba(77, 238, 234, 0.1);
+            color: var(--primary);
+            box-shadow: inset 0 0 10px rgba(77, 238, 234, 0.1);
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            overflow-y: auto;
+            padding: 30px;
+            position: relative;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .rank-tag {
+            background: rgba(77, 238, 234, 0.1);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 800;
+            border: 1px solid rgba(77, 238, 234, 0.2);
+        }
+
+        /* CARDS */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 25px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 20px;
+        }
+
+        .donation-header {
+            background: linear-gradient(135deg, rgba(77, 238, 234, 0.1) 0%, rgba(10, 17, 24, 0.1) 100%);
+        }
+
+        .progress-bg {
+            height: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4deeea, #74ebd5);
+            width: 61%;
+            box-shadow: var(--glow);
+            transition: width 1s ease;
+        }
+
+        /* FLIGHT TRACKER */
+        .flight-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .step {
+            text-align: center;
+            font-size: 10px;
+            opacity: 0.4;
+        }
+
+        .step.active { opacity: 1; color: var(--primary); }
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 18px;
+        }
+        .step.active .step-icon { background: var(--primary); color: #0a1118; box-shadow: var(--glow); }
+
+        #map {
+            height: 280px;
+            border-radius: 30px;
+            border: 1px solid var(--glass-border);
+            margin-top: 20px;
+        }
+
+        /* GRID */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .mini-card h4 { font-size: 10px; opacity: 0.5; text-transform: uppercase; margin-bottom: 10px; }
+        .mini-card h2 { font-size: 20px; font-weight: 800; }
+
+        .section { display: none; }
+        .section.active { display: block; animation: slideIn 0.5s ease forwards; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 160" class="fly-aid-logo-svg" style="display:none;">
+        <defs>
+            <style>
+                .cls-cool-blue { fill: #0d47a1; }
+                .cls-neon-teal { fill: #4deeea; }
+                .cls-text-light { fill: #e0e0e0; }
+            </style>
+        </defs>
+        <path class="cls-cool-blue" d="M112,40A64,64,0,0,0,16,104a63.9,63.9,0,0,0,32,55.4V112a16,16,0,0,1,16-16A16,16,0,0,1,80,112v48a16,16,0,0,1-16,16A16,16,0,0,1,48,160V112a64,64,0,0,0,64-64A64,64,0,0,0,112,40Zm-16,32a32,32,0,0,0-32,32,32,32,0,0,0,32,32A32,32,0,0,0,128,104,32,32,0,0,0,96,72Z"/>
+        <path class="cls-neon-teal" d="M224,32l-32,16L208,64l32-16Z"/>
+        <path class="cls-neon-teal" d="M256,16L224,48l16,16L272,32Z"/>
+        <path class="cls-neon-teal" d="M288,0L256,32l16,16L304,16Z"/>
+        <path class="cls-neon-teal" d="M336,64L288,0l32,16,16-16,32,16-32,16L336,64Z"/>
+        <path class="cls-neon-teal" d="M288,64l16,16,16-16,32,16-16,16,16,16-32,16L288,64Z"/>
+        <path class="cls-neon-teal" d="M224,96l16,16,16-16,32,16-16,16,16,16-32,16L224,96Z"/>
+        <path class="cls-text-light" d="M192,104h32v16H192Z"/>
+        <path class="cls-text-light" d="M224,104h32v16H224Z"/>
+        <path class="cls-text-light" d="M256,104h32v16H256Z"/>
+        <path class="cls-text-light" d="M288,104h32v16H288Z"/>
+        <path class="cls-text-light" d="M320,104h32v16H320Z"/>
+        <path class="cls-text-light" d="M352,104h32v16H352Z"/>
+        <path class="cls-text-light" d="M192,120v16h32V120Z"/>
+        <path class="cls-text-light" d="M192,136v16h32V136Z"/>
+        <path class="cls-text-light" d="M256,136v16h32V136Z"/>
+        <path class="cls-text-light" d="M320,136v16h32V136Z"/>
+        <path class="cls-text-light" d="M352,136v16h32V136Z"/>
+        <path class="cls-text-light" d="M192,152h16v8H192Z"/>
+        <path class="cls-text-light" d="M208,152h16v8H208Z"/>
+        <path class="cls-text-light" d="M224,152h16v8H224Z"/>
+        <path class="cls-text-light" d="M240,152h16v8H240Z"/>
+        <path class="cls-text-light" d="M256,152h16v8H256Z"/>
+        <path class="cls-text-light" d="M272,152h16v8H272Z"/>
+        <path class="cls-text-light" d="M288,152h16v8H288Z"/>
+        <path class="cls-text-light" d="M304,152h16v8H304Z"/>
+        <path class="cls-text-light" d="M320,152h16v8H320Z"/>
+        <path class="cls-text-light" d="M336,152h16v8H336Z"/>
+        <path class="cls-text-light" d="M352,152h16v8H352Z"/>
+        <path class="cls-text-light" d="M368,152h16v8H368Z"/>
+    </svg>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <svg class="fly-aid-logo-svg logo-login">
+                <use href="#cls-cool-blue"></use><use href="#cls-neon-teal"></use><use href="#cls-text-light"></use>
+                <path class="cls-cool-blue" d="M112,40A64,64,0,0,0,16,104a63.9,63.9,0,0,0,32,55.4V112a16,16,0,0,1,16-16A16,16,0,0,1,80,112v48a16,16,0,0,1-16,16A16,16,0,0,1,48,160V112a64,64,0,0,0,64-64A64,64,0,0,0,112,40Zm-16,32a32,32,0,0,0-32,32,32,32,0,0,0,32,32A32,32,0,0,0,128,104,32,32,0,0,0,96,72Z"/>
+                <path class="cls-neon-teal" d="M224,32l-32,16L208,64l32-16Z"/>
+                <path class="cls-neon-teal" d="M256,16L224,48l16,16L272,32Z"/>
+                <path class="cls-neon-teal" d="M288,0L256,32l16,16L304,16Z"/>
+                <path class="cls-neon-teal" d="M336,64L288,0l32,16,16-16,32,16-32,16L336,64Z"/>
+                <path class="cls-neon-teal" d="M288,64l16,16,16-16,32,16-16,16,16,16-32,16L288,64Z"/>
+                <path class="cls-neon-teal" d="M224,96l16,16,16-16,32,16-16,16,16,16-32,16L224,96Z"/>
+                <path class="cls-text-light" d="M192,104h32v16H192Z"/>
+                <path class="cls-text-light" d="M224,104h32v16H224Z"/>
+                <path class="cls-text-light" d="M256,104h32v16H256Z"/>
+                <path class="cls-text-light" d="M288,104h32v16H288Z"/>
+                <path class="cls-text-light" d="M320,104h32v16H320Z"/>
+                <path class="cls-text-light" d="M352,104h32v16H352Z"/>
+                <path class="cls-text-light" d="M192,120v16h32V120Z"/>
+                <path class="cls-text-light" d="M192,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M256,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M320,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M352,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M192,152h16v8H192Z"/>
+                <path class="cls-text-light" d="M208,152h16v8H208Z"/>
+                <path class="cls-text-light" d="M224,152h16v8H224Z"/>
+                <path class="cls-text-light" d="M240,152h16v8H240Z"/>
+                <path class="cls-text-light" d="M256,152h16v8H256Z"/>
+                <path class="cls-text-light" d="M272,152h16v8H272Z"/>
+                <path class="cls-text-light" d="M288,152h16v8H288Z"/>
+                <path class="cls-text-light" d="M304,152h16v8H304Z"/>
+                <path class="cls-text-light" d="M320,152h16v8H320Z"/>
+                <path class="cls-text-light" d="M336,152h16v8H336Z"/>
+                <path class="cls-text-light" d="M352,152h16v8H352Z"/>
+                <path class="cls-text-light" d="M368,152h16v8H368Z"/>
+            </svg>
+            <p class="ios26-secure">iOS 26 Secure Access Portal</p>
+            <input type="text" id="username" placeholder="Dein Missions-Name">
+            <input type="password" id="passcode" placeholder="Zugangs-Code (6767)">
+            <button class="btn-login" onclick="login()">ENTER SYSTEM</button>
+        </div>
+    </div>
+
+    <div id="app-container" style="display: none;">
+        
+        <aside class="sidebar">
+            <svg class="fly-aid-logo-svg logo-sidebar">
+                <path class="cls-cool-blue" d="M112,40A64,64,0,0,0,16,104a63.9,63.9,0,0,0,32,55.4V112a16,16,0,0,1,16-16A16,16,0,0,1,80,112v48a16,16,0,0,1-16,16A16,16,0,0,1,48,160V112a64,64,0,0,0,64-64A64,64,0,0,0,112,40Zm-16,32a32,32,0,0,0-32,32,32,32,0,0,0,32,32A32,32,0,0,0,128,104,32,32,0,0,0,96,72Z"/>
+                <path class="cls-neon-teal" d="M224,32l-32,16L208,64l32-16Z"/>
+                <path class="cls-neon-teal" d="M256,16L224,48l16,16L272,32Z"/>
+                <path class="cls-neon-teal" d="M288,0L256,32l16,16L304,16Z"/>
+                <path class="cls-neon-teal" d="M336,64L288,0l32,16,16-16,32,16-32,16L336,64Z"/>
+                <path class="cls-neon-teal" d="M288,64l16,16,16-16,32,16-16,16,16,16-32,16L288,64Z"/>
+                <path class="cls-neon-teal" d="M224,96l16,16,16-16,32,16-16,16,16,16-32,16L224,96Z"/>
+                <path class="cls-text-light" d="M192,104h32v16H192Z"/>
+                <path class="cls-text-light" d="M224,104h32v16H224Z"/>
+                <path class="cls-text-light" d="M256,104h32v16H256Z"/>
+                <path class="cls-text-light" d="M288,104h32v16H288Z"/>
+                <path class="cls-text-light" d="M320,104h32v16H320Z"/>
+                <path class="cls-text-light" d="M352,104h32v16H352Z"/>
+                <path class="cls-text-light" d="M192,120v16h32V120Z"/>
+                <path class="cls-text-light" d="M192,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M256,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M320,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M352,136v16h32V136Z"/>
+                <path class="cls-text-light" d="M192,152h16v8H192Z"/>
+                <path class="cls-text-light" d="M208,152h16v8H208Z"/>
+                <path class="cls-text-light" d="M224,152h16v8H224Z"/>
+                <path class="cls-text-light" d="M240,152h16v8H240Z"/>
+                <path class="cls-text-light" d="M256,152h16v8H256Z"/>
+                <path class="cls-text-light" d="M272,152h16v8H272Z"/>
+                <path class="cls-text-light" d="M288,152h16v8H288Z"/>
+                <path class="cls-text-light" d="M304,152h16v8H304Z"/>
+                <path class="cls-text-light" d="M320,152h16v8H320Z"/>
+                <path class="cls-text-light" d="M336,152h16v8H336Z"/>
+                <path class="cls-text-light" d="M352,152h16v8H352Z"/>
+                <path class="cls-text-light" d="M368,152h16v8H368Z"/>
+            </svg>
+            <div class="nav-icon active" onclick="switchTab('home', this)"><b>🏠</b>Home</div>
+            <div class="nav-icon" onclick="switchTab('donate', this)"><b>❤️</b>Donate</div>
+            <div class="nav-icon" onclick="switchTab('profile', this)"><b>👤</b>User</div>
+            <div class="nav-icon" style="margin-top: auto;"><b>⚙️</b>Settings</div>
+        </aside>
+
+        <main class="main-content">
+            
+            <header>
+                <h2 style="font-weight: 800; letter-spacing: -1px;">DASHBOARD</h2>
+                <div id="rank-tag" class="rank-tag">STARTER</div>
+            </header>
+
+            <div id="home" class="section active">
+                <div class="glass-card donation-header">
+                    <p style="font-size: 12px; opacity: 0.6;">Global Goal: €40,000</p>
+                    <h1 id="global-amount" style="font-size: 40px; margin: 10px 0;">€24,680</h1>
+                    
+                    <div class="progress-bg">
+                        <div id="progress-bar"></div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; opacity: 0.5;">412 People Donated</span>
+                        <button onclick="switchTab('donate')" style="background:var(--primary); border:none; padding:10px 20px; border-radius:15px; font-weight:800; cursor:pointer;">DONATE NOW</button>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <h4 style="font-size: 11px; opacity: 0.5;">CURRENT FLIGHT: FA-1024</h4>
+                    <div class="flight-steps">
+                        <div class="step"><div class="step-icon">📦</div>Prep</div>
+                        <div class="step active"><div class="step-icon">✈️</div>Air</div>
+                        <div class="step"><div class="step-icon">☁️</div>Live</div>
+                        <div class="step"><div class="step-icon">🪂</div>Drop</div>
+                    </div>
+                </div>
+
+                <div id="map"></div>
+            </div>
+
+            <div id="donate" class="section">
+                <div class="glass-card" style="text-align: center;">
+                    <h2>Mission Support Portal</h2>
+                    <p style="opacity: 0.5; margin: 15px 0;">Wähle deinen Spenden-Betrag.</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button onclick="donate(20)" class="btn-login" style="background: rgba(255,255,255,0.05); color: white;">€20</button>
+                        <button onclick="donate(100)" class="btn-login" style="background: rgba(255,255,255,0.05); color: white;">€100</button>
+                    </div>
+                    <input type="number" id="custom-amt" placeholder="Andere Summe eingeben">
+                    <button class="btn-login" onclick="donate(document.getElementById('custom-amt').value)">SPENDE BESTÄTIGEN</button>
+                </div>
+            </div>
+
+            <div id="profile" class="section">
+                <div class="glass-card" style="text-align: center;">
+                    <div id="rank-emoji" style="font-size: 60px; margin-bottom: 10px;">🌱</div>
+                    <h1 id="disp-name">Missions-Pilot</h1>
+                    <p id="disp-rank" style="color: var(--primary); font-weight: 800;">STARTER</p>
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
+                        <p style="opacity: 0.5;">Deine Gesamtspenden</p>
+                        <h2 id="user-donated" style="font-size: 36px;">€0</h2>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let totalGlobal = 24680;
+        let totalUser = 0;
+        let map = null;
+
+        function login() {
+            const name = document.getElementById('username').value;
+            const code = document.getElementById('passcode').value;
+
+            if (name.length < 2) {
+                alert("Bitte gib einen gültigen Missions-Namen ein.");
+                return;
+            }
+
+            if (code === "6767") {
+                document.getElementById('disp-name').innerText = name;
+                document.getElementById('login-screen').style.opacity = "0";
+                document.getElementById('login-screen').style.transform = "scale(1.2)";
+                
+                setTimeout(() => {
+                    document.getElementById('login-screen').style.display = "none";
+                    document.getElementById('app-container').style.display = "grid";
+                    initMap();
+                }, 800);
+            } else {
+                alert("Falscher Zugangs-Code!");
+            }
+        }
+
+        function initMap() {
+            if (map) return;
+            map = L.map('map', { zoomControl: false }).setView([26.5, -15.6], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+            const route = [[28.1, -15.4], [23.7, -15.9]];
+            L.polyline(route, {color: '#4deeea', weight: 4, opacity: 0.6}).addTo(map);
+            L.circleMarker([26.5, -15.6], { radius: 8, color: '#4deeea', fillOpacity: 1 }).addTo(map);
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            if(el) {
+                document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
+                el.classList.add('active');
+            }
+
+            if(tabId === 'home' && map) {
+                setTimeout(() => map.invalidateSize(), 300);
+            }
+        }
+
+        function donate(val) {
+            let amt = parseInt(val);
+            if(!amt || amt <= 0) return;
+
+            totalUser += amt;
+            totalGlobal += amt;
+            updateUI();
+            alert("Vielen Dank! Die Mission wird unterstützt.");
+            switchTab('profile');
+        }
+
+        function updateUI() {
+            document.getElementById('global-amount').innerText = "€" + totalGlobal.toLocaleString();
+            document.getElementById('user-donated').innerText = "€" + totalUser.toLocaleString();
+            
+            let progress = (totalGlobal / 40000) * 100;
+            document.getElementById('progress-bar').style.width = Math.min(progress, 100) + "%";
+
+            let rank = "STARTER";
+            let emoji = "🌱";
+            if(totalUser >= 50) { rank = "TREUER SPENDER"; emoji = "⭐"; }
+            if(totalUser >= 500) { rank = "ELITE SPENDER"; emoji = "💎"; }
+            if(totalUser >= 1000) { rank = "OMEGA SPENDER"; emoji = "👑"; }
+
+            document.getElementById('rank-tag').innerText = rank;
+            document.getElementById('disp-rank').innerText = rank;
+            document.getElementById('rank-emoji').innerText = emoji;
+        }
+    </script>
+</body>
+</html>
